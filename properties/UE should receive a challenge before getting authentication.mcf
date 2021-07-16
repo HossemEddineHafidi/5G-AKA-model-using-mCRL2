@@ -1,0 +1,1 @@
+[true*.receive_challenge(Autn(Conc(1,Ak(1,1)), Mac(1,1,1)),1)]<true*.authentication_succed(1)>true

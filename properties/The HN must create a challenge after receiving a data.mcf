@@ -1,0 +1,1 @@
+[true*.ue_info_transfer(Suci(Aenc(1,1,1),1),1)]<create_challenge(1,Autn(Conc(1,Ak(1,1)),Mac(1,1,1)),Hxres(1,Res(1,1,1)),Kseaf(1,1,1,1))> true

@@ -1,0 +1,234 @@
+% Atomic data specification
+sort K = Nat;
+sort SQN = Nat;
+sort SUPI = Nat;
+sort R = Nat;
+sort PkHN = Nat;
+sort idHN = Nat;
+sort idSN = Nat;
+
+% Complex data specification
+sort AENC = struct Aenc(SUPI,R,PkHN);
+sort SUCI = struct Suci(AENC,idHN);
+sort MAC = struct Mac(K,SQN,R);
+sort AK = struct Ak(K,R) ;
+sort CONC = struct Conc(SQN,AK);
+sort AUTN = struct Autn(CONC,MAC); 
+sort RES = struct Res(K,R,idSN);
+sort HXRES = struct Hxres(R,RES); 
+sort KSEAF = struct Kseaf(K,R,SQN,idSN);
+sort AUTS = struct Auts(CONC,MAC);
+
+% Functions expression mappings
+map CRYPT_AENC : SUPI # R # PkHN -> AENC;
+map CREATE_SUCI : AENC # idHN -> SUCI;
+map SUCI_GET_SUPI : SUCI -> SUPI;
+map GET_R : AENC -> R;
+map GET_PKHN : AENC -> PkHN;
+map GET_IDHN : SUCI -> idHN;
+map F1 : K # SQN # R -> MAC;
+map F5 : K # R -> AK;
+map F1' : K # SQN # R -> MAC;
+map F5' : K # R -> AK;
+map CREATE_CONC : SQN # AK -> CONC;
+map CREATE_AUTN : CONC # MAC -> AUTN;
+map CHALLENGE : K # R # idSN -> RES;
+map SHA256 : R # RES -> HXRES;
+map KEYSEED : K # R # SQN # idSN -> KSEAF;
+map UPDATE : SQN -> SQN;
+map CREATE_AUTS : CONC # MAC -> AUTS;
+map AUTN_GET_XCONC : AUTN -> CONC;
+map AUTN_GET_XMAC : AUTN -> MAC;
+map XCONC_GET_XSQN : AK # CONC -> SQN;
+map AUTS_GET_MAC : AUTS -> MAC;
+
+% Declaration of variables
+var supi : SUPI,
+	r : R,
+	k : K,
+	auts : AUTS,
+	ak : AK,
+	pkhn : PkHN,
+	idhn : idHN,
+	idsn : idSN,
+	suci : SUCI,
+	sqn : SQN,
+	mac : MAC,
+	conc : CONC,
+	autn : AUTN,
+	res : RES,
+	hxres : HXRES,
+	kseaf : KSEAF,
+	aenc : AENC;
+
+% Definition of functions depending on expression mappings
+eqn CRYPT_AENC(supi,r,pkhn) = Aenc(supi,r,pkhn);
+    CREATE_SUCI(aenc, idhn) = Suci(aenc,idhn);
+    SUCI_GET_SUPI(Suci(Aenc(supi,r,pkhn),idhn)) = supi;
+    GET_R(Aenc(supi,r,pkhn)) = supi;
+    GET_PKHN(Aenc(supi,r,pkhn)) = pkhn;
+    GET_IDHN(Suci(aenc,idhn)) = idhn;
+    F1(k,sqn,r) = Mac(k,sqn,r);
+    F5(k,r) = Ak(k,r);
+	F1'(k,sqn,r) = Mac(k,sqn,r);
+    F5'(k,r) = Ak(k,r);
+    CREATE_CONC(sqn,ak) = Conc(sqn,ak);
+    CREATE_AUTN(conc, mac) = Autn(conc,mac);
+    CHALLENGE(k,r,idsn) = Res(k,r,idsn);
+    SHA256(r,res) = Hxres(r,res);
+    KEYSEED(k,r,sqn,idsn) = Kseaf(k,r,sqn,idsn);
+    UPDATE(sqn) = succ(sqn);
+    CREATE_AUTS(conc,mac) = Auts(conc,mac);
+    AUTN_GET_XCONC(Autn(conc,mac)) = conc;
+    AUTN_GET_XMAC(Autn(conc,mac)) = mac;
+    XCONC_GET_XSQN(ak ,Conc(sqn,ak)) = sqn;
+    AUTS_GET_MAC(Auts(conc,mac)) = mac;
+
+% Actions declarations
+act AUTH_START;
+act AUTH_ACCEPT;
+act SN_SEND0 : SUCI ;
+act UE_RECV1 : SUCI ;
+act HN_SEND2 : SUCI # idSN;
+act SN_RECV3 : SUCI # idSN;
+act SN_SEND4 : R # AUTN # HXRES # KSEAF;
+act HN_RECV5 : R # AUTN # HXRES # KSEAF;
+act UE_SEND6 : AUTN # R;
+act SN_RECV7 : AUTN # R;
+act SN_SEND8 : RES;
+act UE_RECV9 : RES;
+act HN_SEND10 : RES # SUCI;
+act SN_RECV11 : RES # SUCI;
+act SN_SEND12 : SUPI;
+act HN_RECV13 : SUPI;
+act SN_SEND14 : AUTS # Bool;
+act UE_RECV15 : AUTS # Bool;
+act HN_SEND16 : AUTS # Bool # R # SUCI;
+act SN_RECV17 : AUTS # Bool # R # SUCI;
+act SN_SEND18 : Bool;
+act UE_RECV19 : Bool;
+act HN_SEND20;
+act SN_RECV21;
+act SN_SEND22;
+act HN_RECV23;
+act update_sqn;
+
+% Synchronization actions declaration
+act prepare_system;
+act get_ue_info : SUCI;
+act ue_info_transfer : SUCI # idSN;
+act create_challenge : R # AUTN # HXRES # KSEAF;
+act receive_challenge : AUTN # R;
+act send_results : RES;
+act results_transfer : RES # SUCI;
+act authentication_succed : SUPI;
+act authentication_syncError : AUTS # Bool;
+act transfer_syncError: AUTS # Bool # R # SUCI; 
+act authentication_failed: Bool;
+act transfer_authError;
+
+% Processes declaration
+proc 
+% User Equipment (UE)
+	UE = 
+		% 1- Summation of atomic data which represent USIM
+		sum supiU : SUPI, rU : R, pkhnU : PkHN, sqnU : SQN, idhnU : idHN.
+		% 2- Limiting declared USIM data with one occurence where supiU,rU,pkhnU,sqnU and idhnU must equal to 1 insted of being inlimited.
+		% UE occurences can be added with changing equivalences for supiU,pkhnU,sqnU and idhnU into inferior conditions :
+		%(supiU <= 19 && rU == 1 && pkhnU <= 19 && sqnU < 19 && idhnU <= 1) ->
+		(supiU == 1 && rU == 1 && pkhnU == 1 && sqnU < 2 && idhnU == 1) -> 
+		% 3- The UE conceal atomic information using Suci() function where results are sent as a SUCI same like it is described in data specification.
+		SN_SEND0(Suci(Aenc(supiU,rU,pkhnU),idhnU)).
+		% 11- UE receives the autnH and rH from SN as apart of the HN challenge Authentication Vector
+		% now starts to treat the three cases of authentication threw if-than-else conditions
+		sum autnH : AUTN, rH : R. SN_RECV7(autnH,rH).(
+		 
+		% 12 - The first case evaluates positive where MACs are equals
+		% AUTN_GET_XMAC(autnH) == Mac(kU,XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH)),rH)
+		% and second case is positive where SQNs are equals 
+		% sqnU == XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH))
+		% the reaction of UE when both conditions hold is to create a response Res and send it back to SN threw SN_SEND8 action
+		(sum kU : K,idsnU : idSN. (kU == 1 && idsnU == 1 && AUTN_GET_XMAC(autnH) == Mac(kU,XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH)),rH) && (sqnU == XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH)))) -> SN_SEND8(Res(kU,rU,idsnU))) + 
+		% 18 - The second case evaluates positive for MACs :
+		% AUTN_GET_XMAC(autnH) == Mac(kU,XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH)),rH
+		% and negative for SQNs:
+		% sqnU != XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH))
+		% the reaction of UE is to create a syncError , to create an auts and send it to SN accompagned with rH threw action SN_SEND14
+		(sum kU : K,idsnU : idSN. (kU == 1 && idsnU == 1 && AUTN_GET_XMAC(autnH) == Mac(kU,XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH)),rH) && (sqnU != XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH)))) ->
+		 sum syncError : Bool.(syncError == true)-> SN_SEND14(Auts(Conc(sqnU,Ak(kU,rU)),Mac(kU,XCONC_GET_XSQN(Ak(kU,rH),AUTN_GET_XCONC(autnH)),rH)),syncError)) +
+		% 23- The third case evaluates negative for both MACs and SQNs 
+		% which is the else of both 1st conditions, the reaction is to send a message error as a boolean using SN_SEND18 action.
+	    (sum authError : Bool. (authError == true) -> SN_SEND18(authError))).UE;
+% Serving Network (SN)
+	SN = 
+		% 4- SN will not create the UE information to form a suci, it just create a suciU without limiting the sum on suciU since its reception is already
+		% synchronized with SN_SEND0 action
+		sum suciU:SUCI.UE_RECV1(suciU).
+		% 5- The only atomic information that SN have is its ID which is created as idsnS 
+		% both data information suciU and idsnS are sent to HN threw HN_SEND2.
+		sum idsnS : idSN.(idsnS == 1) -> HN_SEND2(suciU,idsnS).
+		% 9- AV data rH,autnH,hxresH and kseafH are created and received threw but not limited threw synchronization like the 4 one.
+		sum rH : R, autnH:AUTN,hxresH : HXRES, kseafH : KSEAF. HN_RECV5(rH,autnH,hxresH,kseafH).
+		% 10- Only autnH and rH are sent to UE.
+		UE_SEND6(autnH,rH).(
+		% 13- The SN receives the response of the User threw resU summation.
+		(sum resU : RES. UE_RECV9(resU).
+		% 14- The received resU will be forwarded accompagned with its corresponding suciU in action HN_SEND10
+		 HN_SEND10(resU,suciU).
+		% 17- The SN receives the supi sent by HN in HN_RECV13 after confirming the response of the user that have the same supi as supiUA. 
+		% the AUTHENTICATION IS SUCCESSFULY DONE.
+		 sum supiUA : SUPI. HN_RECV13(supiUA)) +
+		% 19- SN receives autsU and syncError from UE using action UE_RECV15 
+	    (sum autsU : AUTS, syncError : Bool.UE_RECV15(autsU,syncError).
+		% 20- SN will forward the syncError and autsU accompagned with rH and suciU using action HN_SEND16
+		HN_SEND16(autsU,syncError,rH,suciU).
+		% 22- End of syncError case , where sqn is updated using action HN_RECV23
+		% the AUTHENTICATION IS FAILED !
+		HN_RECV23) +
+		% 24- The SN receives the authentication error boolean message using action UE_RECV19
+		(sum authError: Bool.UE_RECV19(authError)
+		% 25- A confirmation is sent to HN using HN_SEND20
+		.HN_SEND20)).SN;
+% Home Network (HN)	
+	HN = 
+		% 6- Same as number 4 but receiving idsnS additional.
+		sum suciU:SUCI, idsnS:idSN. SN_RECV3(suciU,idsnS).
+		% 7- Atomic information of HN are sequence number sqnH, shared key kH and a random number rH. they are all fixed to 1 for abstraction reasons
+		% it is possible to add more cases using inferior instead of equal :
+		% sum sqnH:SQN, kH : K, rH : R. (sqnH<=19 && kH<=19 && rH<=19)->
+		sum sqnH:SQN, kH : K, rH : R. (sqnH==1 && kH==1 && rH==1)->
+		% 8- HN creates the challenge represented in Authentication Vector using received information of UE as it is depicted in SN_SEND4 action
+		 SN_SEND4(rH,Autn(Conc(sqnH,Ak(kH,rH)),Mac(kH,sqnH,rH)),Hxres(rH,Res(kH,rH,idsnS)),Kseaf(kH,rH,sqnH,idsnS))
+		% 15- The HN receives the response of resU using SN_RECV11 from UE forwarded by SN
+		.((sum resU:RES, suciUA:SUCI. SN_RECV11(resU,suciUA).
+		% 16- A confirmation is done using response received and response created where HN reaction is sending supiU authentication supiUA to the SN
+(resU == Res(kH,rH,idsnS)) -> sum supiUA : SUPI.(supiUA == SUCI_GET_SUPI(suciUA))-> SN_SEND12(supiUA)) + 
+		% 21- The HN receives the syncError, autsH, rH and suciU threw action SN_RECV17
+		% if the mac received in autsU is equal to the mac calculated , the synchronization confirm is sent to SN using action SN_SEND22
+		(sum autsU : AUTS, syncError : Bool,rU : R,suciUF : SUCI.SN_RECV17(autsU,syncError,rU,suciUF).((AUTS_GET_MAC(autsU) == Mac(kH,sqnH,rH))-> SN_SEND22 ))+ 
+		% 26- The the HN receives the authentication error confirmation using action SN_RECV21
+		% the AUTHENTICATION IS FAILED !
+		SN_RECV21).HN;
+
+% System initialisation
+init 
+% Allowed actions that can be considered in the global system behavior
+	allow(
+		{get_ue_info,ue_info_transfer,create_challenge,receive_challenge,send_results,results_transfer,authentication_succed,authentication_syncError,transfer_syncError,authentication_failed,transfer_authError,update_sqn},
+% Communication or synchronization between actions
+		comm({ 	
+			   	SN_SEND0 | UE_RECV1 -> get_ue_info,
+				HN_SEND2 | SN_RECV3 -> ue_info_transfer,
+				SN_SEND4 | HN_RECV5 -> create_challenge,
+				UE_SEND6 | SN_RECV7 -> receive_challenge,
+				SN_SEND8 | UE_RECV9 -> send_results,
+				HN_SEND10 | SN_RECV11 -> results_transfer,
+				SN_SEND12 | HN_RECV13 -> authentication_succed,
+				SN_SEND14 | UE_RECV15 -> authentication_syncError,
+				HN_SEND16 | SN_RECV17 -> transfer_syncError,
+				SN_SEND18 | UE_RECV19 -> authentication_failed,
+				HN_SEND20 | SN_RECV21 -> transfer_authError,
+				SN_SEND22 | HN_RECV23 -> update_sqn},
+% Parallel processes that are specified in this system 
+				UE || SN|| HN
+		 ));

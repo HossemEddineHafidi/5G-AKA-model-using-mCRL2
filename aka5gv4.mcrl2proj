@@ -1,0 +1,9 @@
+<root>
+ <spec>aka5gv4_spec.mcrl2</spec>
+ <properties>
+  <property>DEADLOCK</property>
+  <property>The system can reach a successful authentication for a supi 1</property>
+  <property>The HN must create a challenge after receiving a data</property>
+  <property>UE should receive a challenge before getting authentication</property>
+ </properties>
+</root>
